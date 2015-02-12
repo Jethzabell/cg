@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+		<meta charset="utf-8">
+		<title>Jethzabell | COMP4046 Assignments</title>
+		<meta name="generator" content="Bootply" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+		<link href="css/bootstrap.min.css" rel="stylesheet">
+		<!--[if lt IE 9]>
+			<script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script type="text/javascript" src="js/dat.gui.js"></script>
+		<link href="css/styles.css" rel="stylesheet">
+	</head>
+	
+	<script type="text/javascript">
+		var canvas1, canvas2, canvasB, canvasChroma;
+		var ctx1, ctx2, ctxB, ctxChroma;
+		
+		var imageObj1 = new Image();
+		var imageObj2 = new Image();
+		var imageObj3 = new Image();  
+		
+		function doProcessing() {
+			ctx1.drawImage(imageObj1, 0,0, 256,256);
+			ctxB.drawImage(imageObj3, 0,0, 256,256);
+			
+			imageObj2.width  = 256;
+			imageObj2.height = 256;
+			
+			var imageData = ctx1.getImageData(0, 0, 256, 256);
+			 var imageDataB = ctxB.getImageData(0, 0, 256, 256);
+			var data = imageData.data;
+			var dataB = imageDataB.data;
+
+			// iterate over all pixels
+			var idx, r, g, b, a;
+			
+			for (var x=0; x<imageData.width; x++)
+			{
+				for (var y=0; y<imageData.height; y++) 
+				{
+					idx=4*(x+y*imageData.width);
+					
+					r = data[idx];
+					g = data[idx+1];
+					b = data[idx+2];
+					a = data[idx+3] = 255;                  // alpha
+					
+					//If this seems like a green pixel replace it:
+					if ( (r >= 0 && r <= 40) && (g >= 220 && g <= 255) && (b >= 0 && b <= 40) ){ 
+						data[idx]=0;// R
+						data[idx + 1]=0;// G
+						data[idx + 2]=0;// B
+					}
+					else //replace the other with white
+					{
+						data[idx]=255;// R
+						data[idx + 1]=255;// G
+						data[idx + 2]=255;// B
+					}		
+				}
+			}
+			ctx2.putImageData(imageData, 0,0);	
+			chromaKey();
+		}
+				
+		function chromaKey() {
+
+			ctx1.drawImage(imageObj1, 0,0, 256,256);
+			ctxB.drawImage(imageObj3, 0,0, 256,256);
+			
+			var imageDataBlack = ctx2.getImageData(0, 0, 256, 256);
+			var imageData = ctx1.getImageData(0, 0, 256, 256);
+			var imageDataB = ctxB.getImageData(0, 0, 256, 256);
+			
+			var data = imageData.data;
+			var dataB = imageDataB.data;
+			var dataBlack = imageDataBlack.data;
+			
+			 var idx, r, g, b, a;
+			
+			for (var x=0; x<imageData.width; x++)
+			{
+				for (var y=0; y<imageData.height; y++) 
+				{
+					idx=4*(x+y*imageData.width);
+					r = dataBlack[idx];
+					g = dataBlack[idx+1];
+					b = dataBlack[idx+2];
+					a = dataBlack[idx+3] = 255;                  // alpha
+					
+					//replace black pixel with background image
+					if ((r==0)&&(b==0)&&(g==0))
+					{
+						r = dataBlack[idx] = dataB[idx];
+						g = dataBlack[idx+1] = dataB[idx + 1];
+						b = dataBlack[idx+2] = dataB[idx + 2];
+						a = dataBlack[idx+3] = dataB[idx + 3]; 
+					}
+					else //replace white pixels with greenscreen image pixels
+					{
+						r = dataBlack[idx] = data[idx];
+						g = dataBlack[idx+1] = data[idx + 1];
+						b = dataBlack[idx+2] = data[idx + 2];
+						a = dataBlack[idx+3] = data[idx + 3];
+					}
+				}
+			}
+			ctxChroma.putImageData(imageDataBlack, 0,0);	
+		}
+		 
+		function initCanvas() {    
+			canvas1 = document.getElementById('canvas-1');
+			ctx1 = canvas1.getContext('2d');
+		
+			canvas2 = document.getElementById('canvas-2');
+			ctx2 = canvas2.getContext('2d');
+			
+			canvasB = document.getElementById('canvas-B');
+			ctxB = canvasB.getContext('2d');
+			
+			canvasChroma = document.getElementById('canvasChroma');
+			ctxChroma = canvasChroma.getContext('2d');
+		}
+		
+		function start() {
+        initCanvas();
+        imageObj1.onload = doProcessing;
+        imageObj1.src = 'img/ninaG.jpg';
+		imageObj3.src = 'img/background.jpg';
+    }
+	</script>
+	
+	<body onload="start();">
+		<nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+			<div class="container-fluid">
+				<div class="navbar-header">
+					<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+						<span class="sr-only">Toggle navigation</span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+					</button>
+					<a class="navbar-brand" href="#">COMP4046 | Jethzabell Medina</a>
+				</div>
+				<div class="collapse navbar-collapse">
+					<ul class="nav navbar-nav">
+						<li><a href="index.html">Part #1</a>
+						<li><a href="segunda.html">Part #2</a></li>
+						<li class="dropdown active">
+							<a href="tercera.html" class="dropdown-toggle" data-toggle="dropdown">Part #3<span class="caret"></span></a>
+							<ul class="dropdown-menu" role="menu">
+								<li><a href="#question1">Question #1</a></li>
+								<li><a href="#question2">Question #2</a></li>
+							</ul>
+						</li>
+					</ul>
+				</div><!--/.nav-collapse -->
+			</div>
+		</nav>
+
+		<div class="container">
+			<div class="row">
+				<div class="col-lg-12 col-md-9 main"> 					  
+					<h1>Colored disks</h1>
+					<p class="lead page-header">
+					Objective: Implement the chroma-key technique to replace the green background by another image.
+					</p>
+					
+					<!--Question #1 -->
+					<section id="question1">
+						<h1>Question #1: RGB segmentation</h1>
+    
+						<div class="row placeholders">
+							<div class="col-md-4 placeholder text-center">
+								<h4>Green Picture</h4>
+								<canvas id="canvas-1" width="300" height="250"></canvas>
+
+							</div>
+							<div class="col-md-4 placeholder text-center">
+								<h4>Background</br>refresh<code>F5</code>if you dont see the image</h4>
+								<canvas id="canvas-B" width="300" height="250"></canvas>
+							</div>
+							<div class="col-md-4 placeholder text-center">
+								<h4>Mask</h4>
+								<canvas id="canvas-2" width="300" height="250"></canvas>
+							</div>
+						</div>
+					</section> <!-- finish Question #1 -->	
+					</br>
+					<!-- Question #2 --> 
+					<section id="question2">
+								<h1>Question 2: Alpha-compositing</h1>
+								<p class="lead">
+									
+								</p>
+								<div class="row placeholders">
+									<div class="col-sm-6 placeholder text-center">
+										<h4>Using the mask</h4>
+										<canvas id="canvasChroma" width="300" height="250"></canvas>
+									</div>
+								</div>
+					</section> <!--Question #2 -->	
+				</div><!--/row-->				
+			</div>
+		</div><!--/.container-->
+
+		<footer>
+		  <p class="pull-right">Jethzabell, 2015</p>
+		</footer>
+			
+		<!-- script references -->
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+		<script src="js/bootstrap.min.js"></script>
+		<script src="js/scripts.js"></script>
+		
+		
+	</body>
+</html>

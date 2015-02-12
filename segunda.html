@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+		<meta charset="utf-8">
+		<title>Jethzabell | COMP4046 Assignments</title>
+		<meta name="generator" content="Bootply" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+		<link href="css/bootstrap.min.css" rel="stylesheet">
+		<!--[if lt IE 9]>
+			<script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script type="text/javascript" src="js/dat.gui.js"></script>
+		<link href="css/styles.css" rel="stylesheet">
+		 
+	</head>	
+	
+	<body onload="start();">
+		<nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+			<div class="container-fluid">
+				<div class="navbar-header">
+					<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+						<span class="sr-only">Toggle navigation</span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+					</button>
+					<a class="navbar-brand" href="#">COMP4046 | Jethzabell Medina</a>
+				</div>
+				<div class="collapse navbar-collapse">
+					<ul class="nav navbar-nav">
+						<li><a href="index.html">Part #1</a>
+						<li class="dropdown active">
+							<a href="segunda.html" class="dropdown-toggle" data-toggle="dropdown">Part #2<span class="caret"></span></a>
+							<ul class="dropdown-menu" role="menu">
+								<li><a href="#question1">Question #1</a></li>
+								<li><a href="#question2">Question #2</a></li>
+								<li><a href="#question3">Question #3</a></li>
+							</ul>
+						</li>
+						<li><a href="tercera.html">Part #3</a></li>
+					</ul>
+				</div><!--/.nav-collapse -->
+			</div>
+		</nav>
+
+		<div class="container">
+			<div class="row">
+				<div class="col-lg-12 col-md-9 main"> 
+					<!--toggle sidebar button-->
+					<p class="visible-xs">
+						<button type="button" class="btn btn-primary btn-xs" data-toggle="offcanvas"></button>
+					</p>
+					<h1>Colored disks</h1>
+					<p class="lead page-header">
+					Objective: Create graphics by direct pixel manipulation and using 2d canvas operations
+					</p>
+					
+					<!--Question #1 -->
+					<section id="question1">
+						<h1>Question #1: Colored disk</h1>
+						<p class="lead">
+							<li>a)Draw a colored disk in the canvas by modifying each pixel one by onein the RGBA array obtained by 
+							getImageData()(rasterization of the disk)</li>
+							--Define the coordinates x0,y0 of the disk center and a RGB color.
+							</br>--For each pixel(x,y),compute the distance to(x0,y0) and modify the pixel R,G,B values if this distance
+							is less than the radius.
+							</br>--Draw the image using putImageData()
+							<li>b)Compare your result with the result obtained by using the higher level 2d canvas function arc().</li>
+						</p>
+						<div class="row placeholders">
+							<div class="col-sm-6 placeholder text-center">
+								<h4>Part A</h4>
+								<canvas id="canvas-A" width="300" height="300"></canvas>
+								<script type="text/javascript">
+									var canvasA = document.getElementById("canvas-A");
+									var ctxA = canvasA.getContext("2d");
+
+									var imgDataA = ctxA.getImageData(0, 0, canvasA.width, canvasA.height);
+									var dataA = imgDataA.data;
+
+									circleA();
+										  
+									function circleA(){
+
+										var radius = 80;
+										// iterate over all pixels
+										x0 = 150;
+										y0 = 150;
+										
+										for (var x=0; x<canvasA.width; x++)
+										{
+											for (var y=0; y<canvasA.height; y++) 
+											{
+												var idx=4*(x+y*canvasA.height);
+												var dist = Math.sqrt( Math.pow((x-x0),2)  + Math.pow((y-y0),2) );
+												if(dist < radius)
+												{//
+													dataA[idx] = 0;
+													dataA[idx+1] = 0;
+													dataA[idx+2] = 0;
+													dataA[idx+3] = 255;      
+											   }  
+											}
+										} 
+										ctxA.putImageData(imgDataA, 0, 0); 
+									}
+								</script>
+							</div>
+							<div class="col-sm-6 placeholder text-center">
+								<h4>Part B</h4>
+								<canvas id="tempCanvas" width="300" height="300"></canvas>
+								<script type="text/javascript">
+							
+									var tempCanvas = document.getElementById('tempCanvas');
+									var tempContext = tempCanvas.getContext('2d');
+
+									var cRadius = 80;
+
+									tempContext.save();
+
+									// draw circle Green
+									tempContext.beginPath();
+									tempContext.arc(100, 110, cRadius, 0, 2 * Math.PI, false);
+									tempContext.fillStyle = "rgba(0, 255, 0, 255)";
+									tempContext.fill();
+									// set global composite
+									tempContext.globalCompositeOperation = "lighter";
+
+									// draw circle Red
+									tempContext.beginPath();
+									tempContext.arc(210, 110, cRadius, 0, 2 * Math.PI, false);
+									tempContext.fillStyle = 'red';
+									tempContext.fill();
+									tempContext.restore();
+
+									// set global composite
+									tempContext.globalCompositeOperation = "lighter";
+
+									// draw circle Red
+									tempContext.beginPath();
+									tempContext.arc(150, 190, cRadius, 0, 2 * Math.PI, false);
+									tempContext.fillStyle = 'blue';
+									tempContext.fill();
+									tempContext.restore();
+									
+								</script>
+							</div>
+						</div>
+						<div class = "row">
+							<div class="col-sm-6 placeholder text-center">
+								<code style="background-color:#000000"> 
+									The black circle is using <code> myFunction </code>
+									and the second image is using <code> arc(). </code>
+									</br>
+									Using <code> arc() </code> 
+									function you can see that the image is more solid in the borders.
+									</br>
+									Here is an image of how my function is drawing the pixels, and that why
+									</br>
+									you see in the First Image that there are little edges in the black circle.
+								</code>
+							</div>
+							<div class="col-sm-6 placeholder text-center">
+								<img src="img/circuloRadio.png">
+								<h2>Image when <code>Radius == Distance</code></h2>
+							</div>
+						</div>
+					</section> <!-- finish Question #1 -->	
+					<!-- Question #2 --> 
+					<section id="question2">
+								<h1>Question 2: Additive synthesis</h1>
+								<p class="lead">
+									Extend the code of Q1a so that now 3 disks are shown (see example image), and the image is generated using additive synthesis of color pixel by pixel.
+								</p>
+								<div class="row placeholders">
+									<div class="col-sm-6 placeholder text-center">
+										<h4>Part A</h4>
+										<canvas id="canvas" width="300" height="300"></canvas>
+										<script type="text/javascript">
+
+										var canvas = document.getElementById("canvas");
+										var ctx = canvas.getContext("2d");
+
+										var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+										var data = imgData.data;
+
+										circleDist();
+											  
+										function circleDist(){
+
+											var radius = 80;
+											// iterate over all pixels
+											x0 = 100;
+											y0 = 110;
+											
+											for (var x=0; x<canvas.width; x++)
+											{
+												for (var y=0; y<canvas.height; y++) 
+												{
+													var idx=4*(x+y*canvas.height);
+													var dist = Math.sqrt( Math.pow((x-x0),2)  + Math.pow((y-y0),2) );
+													if(dist < radius)
+													{//
+														data[idx] = 0;
+														data[idx+1] = 255;
+														data[idx+2] = 0;
+														data[idx+3] = 255;      
+												   } 
+													else 
+													{//negro(background)
+														data[idx] = 0;
+														data[idx+1] = 0;
+														data[idx+2] = 0;
+														data[idx+3] = 255;
+													}  
+												}
+											} 
+											x0 = 200;
+											y0 = 110;
+											
+											for (var x=0; x<canvas.width; x++)
+											{
+												for (var y=0; y<canvas.height; y++) 
+												{
+													var idx=4*(x+y*canvas.height);
+													var dist = Math.sqrt( Math.pow((x-x0),2)  + Math.pow((y-y0),2) );
+													if(dist < radius)
+													{//
+														data[idx] += 255;     
+												   } 
+												}
+											}
+											
+											x0 = 150;
+											y0 = 190;
+											for (var x=0; x<canvas.width; x++)
+											{
+												for (var y=0; y<canvas.height; y++) 
+												{
+													var idx=4*(x+y*canvas.height);
+													var dist = Math.sqrt( Math.pow((x-x0),2)  + Math.pow((y-y0),2) );
+													if(dist < radius)
+													{//
+														data[idx+2] += 255;     
+												   } 
+												}
+											}	
+											ctx.putImageData(imgData, 0, 0); 
+										}
+										</script>
+									</div>
+								</div>
+					</section> <!--Question #2 -->	
+					<!-- Question #3 --> 
+					<section id="question3">
+							<h1>Question 3: Animation</h1>
+							<p class="lead">
+								Animate the display of Q2a to show the 3 disks rotating around the image center by using requestAnimFrame()
+							</p>
+						<div class="row placeholders">
+							<div class="col-sm-6 placeholder text-center">
+								<canvas id="canvasB" width=300 height=300></canvas>
+								<script type="text/javascript">
+
+									window.requestAnimFrame = (function(){
+									  return  window.requestAnimationFrame       || 
+											  window.webkitRequestAnimationFrame || 
+											  window.mozRequestAnimationFrame    || 
+											  window.oRequestAnimationFrame      || 
+											  window.msRequestAnimationFrame     || 
+											  function(/* function */ callback, /* DOMElement */ element){
+												window.setTimeout(callback, 1000 / 60);
+											  };
+									})();
+
+									
+									var canvas = document.getElementById("canvasB");
+									var ctx = canvas.getContext("2d");
+
+									var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+									var data = imgData.data;
+
+									black();
+									animate();
+									function animate() {
+										requestAnimFrame( animate );
+										black();
+										circleRed();
+										circleGreen();
+										circleBlue();
+									}
+
+									function black(){
+
+										// iterate over all pixels
+										
+										for (var x=0; x<canvas.width; x++)
+										{
+											for (var y=0; y<canvas.height; y++) 
+											{
+												var idx=4*(x+y*canvas.height);
+
+													data[idx] = 0;
+													data[idx+1] = 0;
+													data[idx+2] = 0;
+													data[idx+3] = 255;
+									 
+											}
+										} 
+										ctx.putImageData(imgData, 0, 0); 
+									}
+										
+									function circleRed()
+									{
+										var radius = 80;
+										var time = new Date().getTime() * 0.002;
+										var x0 = Math.sin( time) * 16 + 150;
+										var y0 = Math.cos( time ) * 20 + 150;	
+										
+										// iterate over all pixels
+										for (var x=0; x<canvas.width; x++)
+										{
+											for (var y=0; y<canvas.height; y++) 
+											{
+												var idx=4*(x+y*canvas.height);
+												var dist = Math.sqrt( Math.pow((x-x0),2)  + Math.pow((y-y0),2) );
+												if(dist < radius)
+												{//RED
+													data[idx] = 255;
+													data[idx+1] = 0;
+													data[idx+2] = 0;
+													data[idx+3] = 255;      
+											   } 	
+											}
+										} 
+										ctx.putImageData(imgData, 0, 0);
+									}
+
+									function circleBlue()
+									{
+										var radius = 80;	
+										var time = new Date().getTime() * 0.006;
+										var x0 = Math.sin( time ) * 20 + 150;
+										var y0 = Math.cos( time ) * 16 + 150;
+										for (var x=0; x<canvas.width; x++)
+										{
+											for (var y=0; y<canvas.height; y++) 
+											{
+												var idx=4*(x+y*canvas.height);
+												var dist = Math.sqrt( Math.pow((x-x0),2)  + Math.pow((y-y0),2) );
+												if(dist < radius)
+												{//Blue
+													data[idx+2] += 255;     
+												} 
+											}
+										}
+										ctx.putImageData(imgData, 0, 0);
+									}
+									function circleGreen() {
+										var radius=80;
+										var time = new Date().getTime() * 0.008;
+										var x0 = Math.sin( time ) * 18 + 150;
+										var y0 = Math.cos( time  ) * 18 + 150;
+										for (var x=0; x<canvas.width; x++)
+										{
+											for (var y=0; y<canvas.height; y++) 
+											{
+												var idx=4*(x+y*canvas.height);
+												var dist = Math.sqrt( Math.pow((x-x0),2)  + Math.pow((y-y0),2) );
+												if(dist < radius)
+												{//Green
+													data[idx+1] += 255;     
+												} 
+											}
+										}
+										ctx.putImageData(imgData, 0, 0);
+									}
+								</script>
+							</div>
+						</div>	
+					</section> <!--Question #3 -->
+				</div><!--/row-->				
+			</div>
+		</div><!--/.container-->
+
+		<footer>
+		  <p class="pull-right">Jethzabell, 2015</p>
+		</footer>
+			
+		<!-- script references -->
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+		<script src="js/bootstrap.min.js"></script>
+		<script src="js/scripts.js"></script>
+		
+		
+	</body>
+</html>

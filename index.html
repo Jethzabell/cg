@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+		<meta charset="utf-8">
+		<title>Jethzabell | COMP4046 Assignments</title>
+		<meta name="generator" content="Bootply" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+		<link href="css/bootstrap.min.css" rel="stylesheet">
+		<!--[if lt IE 9]>
+			<script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script type="text/javascript" src="js/dat.gui.js"></script>
+		<link href="css/styles.css" rel="stylesheet">
+	</head>
+	
+	<script type="text/javascript">
+	
+		//***for question1 rComponent***
+		var canvas1, canvas2;
+		var ctx1, ctx2;
+		var imageObj1 = new Image();
+		var imageObj2 = new Image();
+		
+		var colorR = {
+			'q1Red': 255
+		}
+		//***for question2 threshold***
+		var canvas3, canvas4;
+		var ctx3, ctx4;
+		var imageObj3 = new Image();
+		var imageObj4 = new Image();
+		
+		var thresH = {
+			'q2Threshold': +120
+		}
+		//***for question3 offset***
+		var canvas7, canvas8;
+		var ctx7, ctx8;
+		var imageObj7 = new Image();
+		var imageObj8 = new Image();
+	 
+		var params = {
+			'q3OffSet': +30
+		}
+		
+		var center = {
+			'q3center': 128
+		}
+		
+		//========================================================================
+		function rComponent(imageData) 
+		{
+			ctx7.drawImage(imageObj7, 0,0, 300,250);
+		
+			imageObj8.width  = 300;
+			imageObj8.height = 250;
+			
+			var imageData = ctx7.getImageData(0, 0, 300, 250);
+			// Do in place processing: imageData content replaced with new values
+			var data = imageData.data;
+			// iterate over all pixels
+			 for(var i = 0; i < data.length; i += 4) {
+				data[i] = colorR.q1Red;// R
+				data[i + 1];// G
+				data[i + 2];// B
+			}
+			ctx8.putImageData(imageData, 0,0);
+		}
+		//========================================================================	
+		var threshold = function(imageData) {
+			 ctx3.drawImage(imageObj3, 0,0, 300,250);
+		
+			imageObj4.width  = 300;
+			imageObj4.height = 250;
+			
+			var imageData = ctx3.getImageData(0, 0, 300, 250);
+			// Do in place processing: imageData content replaced with new values
+			var data = imageData.data;
+			//var threshold = 120;
+			// iterate over all pixels
+			for(var i = 0; i < data.length; i += 4) {
+				
+				var t =(0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2] >= thresH.q2Threshold)? 255 : 0;
+				
+				data[i] = t;// R
+				data[i + 1] = t;// G
+				data[i + 2] = t;// B
+				
+			}
+			ctx4.putImageData(imageData, 0,0);
+		}
+		//===================================================================
+		function doProcessing() {
+			ctx1.drawImage(imageObj1, 0,0, 300,250);
+			
+			imageObj2.width  = 300;
+			imageObj2.height = 250;
+			
+			var imageData = ctx1.getImageData(0, 0, 300, 250);
+			var data = imageData.data;
+			var scale = 1.2;
+			// iterate over all pixels
+				 for(var i = 0; i < data.length; i += 4) {
+					data[i] = (scale*(data[i] - center.q3center)) + center.q3center + params.q3OffSet;// R
+					data[i + 1] = (scale*(data[i+1] - center.q3center)) + center.q3center + params.q3OffSet; // G
+					data[i + 2] = (scale*(data[i+2] - center.q3center)) + center.q3center + params.q3OffSet; // B
+					data[i + 3] = 255; //Alpha
+				}
+			ctx2.putImageData(imageData, 0,0);
+		}
+		//========================================================================		
+		var text = {
+			'Questions' : 'GUI'
+		}
+		var gui;
+		//using dat.GUI.js
+		function initGUI() 
+		{
+			gui = new dat.GUI({ autoPlace: false });
+			
+			gui.add(text,'Questions');
+			gui.add(colorR, 'q1Red').min(0).max(+255).onChange(rComponent);
+			gui.add(thresH, 'q2Threshold').min(0).max(+255).onChange(threshold);
+			gui.add(params, 'q3OffSet').min(0).max(+255).onChange(doProcessing);
+			gui.add(center, 'q3center').min(0).max(+255).onChange(doProcessing);
+			
+			var parent = document.getElementById('controls');      
+			parent.appendChild(gui.domElement);
+		}
+			
+		function initCanvas() 
+		{   
+			//*********for question1 rComponent**********
+			canvas1 = document.getElementById('canvas-1');
+			ctx1 = canvas1.getContext('2d');
+			
+			canvas2 = document.getElementById('canvas-2');
+			ctx2 = canvas2.getContext('2d');
+			//*********for question2 threshold**********
+			canvas3 = document.getElementById('canvas-3');
+			ctx3 = canvas3.getContext('2d');
+		
+			canvas4 = document.getElementById('canvas-4');
+			ctx4 = canvas4.getContext('2d');
+			//*********for question3 offset**********
+			canvas7 = document.getElementById('canvas-7');
+			ctx7 = canvas7.getContext('2d');
+		
+			canvas8 = document.getElementById('canvas-8');
+			ctx8 = canvas8.getContext('2d');	
+		}
+		
+		      function getMousePos(canvas, evt) {
+        var rect = canvas.getBoundingClientRect();
+        return {
+          x: evt.clientX - rect.left,
+          y: evt.clientY - rect.top
+        };
+      }
+	
+
+		function start() 
+		{
+			initCanvas();
+			initGUI();
+			 
+			imageObj1.onload = doProcessing;
+			imageObj1.src = 'img/nikeLebron.jpg';
+			
+			imageObj3.onload = threshold;
+			imageObj3.src = 'img/nikeLebron.jpg';
+			
+			imageObj7.onload = rComponent;	
+			imageObj7.src = 'img/show.png';
+		}
+	
+	</script>
+	
+	<body onload="start();">
+		<nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+			<div class="container-fluid">
+				<div class="navbar-header">
+					<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+						<span class="sr-only">Toggle navigation</span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+					</button>
+					<a class="navbar-brand" href="index.html">COMP4046 | Jethzabell Medina</a>
+				</div>
+				<div class="collapse navbar-collapse">
+					<ul class="nav navbar-nav">
+						<li class="dropdown active">
+							<a href="index.html" class="dropdown-toggle" data-toggle="dropdown">Part #1<span class="caret"></span></a>
+							<ul class="dropdown-menu" role="menu">
+								<li><a href="#question1">Question #1</a></li>
+								<li><a href="#question2">Question #2</a></li>
+								<li><a href="#question3">Question #3</a></li>
+								<li><a href="#question4">Question #4</a></li>
+								<li><a href="#question5">Question #5</a></li>
+							</ul>
+						</li>
+						<li class="dropdown">
+							<a href="index.html" class="btn btn-danger dropdown-toggle" data-toggle="dropdown" >Controls<span class="caret"></span></a>
+							<ul class="dropdown-menu" role="menu">
+								<li><span id="controls"></span></li>
+							</ul>
+						</li>
+						<li><a href="segunda.html">Part #2</a></li>
+						<li><a href="tercera.html">Part #3</a></li>
+					</ul>
+				</div><!--/.nav-collapse -->
+			</div>
+		</nav>
+
+		<div class="container">
+			<div class = "row">
+				<div class="col-lg-12 col-md-9 main"> 
+					<!--toggle sidebar button-->
+					<h1>First Assignment </h1>
+					<p class="lead page-header">
+					Objective: Process raster images using simple pixelwise operations and add interactivity.
+					</br>
+					Setup a	page with at least two canvases. Draw the original input image in the first	one,
+					process its data using pixelwise operations, and put the content of the output	images in the other	canvases.
+					</p>
+					
+					<!--Question #1 -->
+					<section id="question1">
+						<h1>Question #1: Decomposition into individual components:</h1>
+						<p class="lead">
+						Keep only the R	component, setting the G and B components to zero.
+						</p>
+						
+						<h2>Basic Image Processing</h2>
+    
+						<div class="row placeholders">
+							<div class="col-sm-6 placeholder text-center">
+								<h4>Image 1</h4>
+								<canvas id="canvas-7" width="300" height="250"></canvas>
+							</div>
+							<div class="col-sm-6 placeholder text-center">
+								<h4>Image 2</h4>
+								<canvas id="canvas-8" width="300" height="260"></canvas>
+							</div>
+						</div>
+					</section> <!-- finish Question #1 -->	
+					</br>
+					<!-- Question #2 --> 
+					<section id="question2">
+								<h1>Question 2: Thresholding of	grey-scale image</h1>
+								<p class="lead">
+									Convert	the	image to grey-level by averaging the R, G, B components.
+									Threshold the grey-level image at grey level threshold=120.
+								</p>
+								<div class="row placeholders">
+									<div class="col-sm-6 placeholder text-center">
+										<h4>Image 1</h4>
+										<canvas id="canvas-3" width="300" height="250"></canvas>
+									</div>
+									<div class="col-sm-6 placeholder text-center">
+										<h4>Image 2</h4>
+										<canvas id="canvas-4" width="300" height="260"></canvas>
+									</div>
+								</div>
+					</section> <!--Question #2 -->	
+					<!-- Question #3 --> 
+					<section id="question3">
+								<h1>Question 3: Linear correction</h1>
+								<p class="lead">
+									Apply a linear correction on the pixel values R, G, B:	
+									- Increase the contrast	of the image by	a scale=1.2, leaving intensity value center=128 unchanged
+									- then lighten the image by offset=+30 intensity levels.
+								</p>
+								<div class="row placeholders">
+									<div class="col-sm-6 placeholder text-center">
+										<h4>Image 1</h4>
+										<canvas id="canvas-1" width="300" height="250"></canvas>
+									</div>
+									<div class="col-sm-6 placeholder text-center">
+										<h4>Image 2</h4>
+										<canvas id="canvas-2" width="300" height="260"></canvas>
+									</div>
+								</div>
+					</section> <!--Question #3 -->
+					<!-- Question #4 --> 
+					<section id="question4">
+								<h1>Question 4: Interactivity - Parameters</h1>
+								<p class="lead">
+									Add controls to	modify interactively offset, scale, center and threshold.
+								</p>
+								<div class="row placeholders">
+									<div class="col-sm-6 placeholder text-center">
+										<h4>GUI</h4>
+										<img class="img-resposive" src="img/q4gui.jpg" >
+									</div>
+								</div>
+					</section> <!--Question #4 -->
+						<!-- Question #5 --> 
+					<section id="question5">
+						<h1>Question 5: Interactivity - Mouse</h1>
+						<p class="lead">
+							<li>Add mouse handling that enables the user to select a rectangular zone (x,y,w,h).</li>
+							<li>The output image should be a copy of the corresponding region from the input image.</li>
+							<li>Make sure the output canvas is resized according to this content.</li>
+						</p>
+						<div class="row placeholders">
+								<div class="col-md-5 placeholder text-center">
+										<canvas id="myCanvas5" width="300" height="200" style="border:solid 1px #000000;"></canvas>
+								</div>
+								<div class="col-md-2 placeholder text-center">
+									<li>First - <code>Double click</code> where you want to start your crop</li>
+									<li>Second - Just <code>one click</code> where you want to finish your crop</li>
+									<li>Last - <code>crop();</code>
+									<button class="btn btn-success" onclick="buttonClick();">Crop</button>
+									<button class="btn btn-danger" onclick="Clear_image();">Clear Image</button>
+									</br></br></br>
+								</div>
+								<div class="col-md-5 placeholder text-center">
+									<canvas id="myCanvas1" width="300" height="200" style="border:solid 1px #000000;"></canvas>
+								</div>
+									<script>
+										var canvas = document.getElementById('myCanvas5');
+										var contextQ5 = canvas.getContext('2d');
+										var imageObj = new Image();
+
+										var canvasQ5 = document.getElementById('myCanvas1');
+										var context1 = canvasQ5.getContext('2d');
+										var imageObj1 = new Image();
+
+										var sourceX;
+										var sourceY;
+										var widthfinalx;
+										var heightfinaly;
+
+										imageObj.onload = function() {
+										// draw cropped image
+										contextQ5.drawImage(imageObj, 0, 0,300,200);
+
+										};
+										imageObj.src = 'img/beach.jpg';
+
+
+										function buttonClick(){		
+											//Awesomeness! If user make the crop the wrong way
+											//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+											//***************Get new canvas width****************
+											if(widthfinalx - sourceX < 0){
+												canvasQ5.width = (widthfinalx - sourceX)*(-1);
+												tempx = sourceX;
+												sourceX = widthfinalx;
+												widthfinalx = tempx;
+												}
+											else
+												canvasQ5.width = (widthfinalx - sourceX);
+											//***************Get new canvas Height*****************
+											if(heightfinaly - sourceY < 0){
+												canvasQ5.height = (heightfinaly - sourceY)*(-1);
+												tempy = sourceY;
+												sourceY = heightfinaly;
+												heightfinaly = tempy;
+											}
+											else
+												canvasQ5.height = (heightfinaly - sourceY);
+											//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<		
+											
+											var imageData = contextQ5.getImageData(sourceX, sourceY, 300, 200);
+											
+											// Do in place processing: imageData content replaced with new values
+											var data = imageData.data;
+											var width = canvasQ5.width;
+											var height = canvasQ5.height;    	
+											
+											// iterate over all pixels, do in place computation
+											for (var x=0; x<width; x++)
+											for (var y = 0; y<height; y++) {
+												var idx=4*(x+y*width);
+												
+												data[idx]   = data[idx];
+												data[idx+1] = data[idx+1];
+												data[idx+2] = data[idx+2];
+												data[idx+3] = 255;// alpha
+											}
+											context1.putImageData(imageData, 0,0);
+											//context1.drawImage(imageObj, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
+										}
+										
+										function Clear_image() {
+											context1.clearRect(0, 0, 300, 200);
+										}
+
+										function getMousePos(canvas, evt){
+											var rect = canvas.getBoundingClientRect();
+											return {
+												x: evt.clientX - rect.left,
+												y: evt.clientY - rect.top
+											};
+										}
+									  
+										canvas.addEventListener('click', function(evt){
+										var mousePos = getMousePos(canvas, evt);
+											var message = 'Mouse position: ' + mousePos.x + ',' + mousePos.y;
+											widthfinalx = mousePos.x;
+											heightfinaly = mousePos.y;
+											console.log(message);
+										}, false);
+										  
+										canvas.addEventListener('dblclick', function(evt){
+											var mousePos = getMousePos(canvas, evt);
+											var message = 'Mouseee position: ' + mousePos.x + ',' + mousePos.y;
+											sourceX = mousePos.x;
+											sourceY = mousePos.y;
+											console.log(message);
+										}, false);
+									</script>
+						</div>
+					</section> <!--Question #5 -->
+				</div>				
+			</div><!--/row-->
+		</div><!--/.container-->
+
+		<footer>
+		  <p class="pull-right">Jethzabell, 2015</p>
+		</footer>
+			
+		<!-- script references -->
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+		<script src="js/bootstrap.min.js"></script>
+		<script src="js/scripts.js"></script>
+		
+		
+	</body>
+</html>
