@@ -1,0 +1,367 @@
+<html>
+	<head>
+		<title>HTML5 Canvas &mdash; Basic Geometry</title>
+		<meta http-equiv="content-type" content="text/html; charset=UTF8">
+
+		<script type="text/javascript" src="dat.gui.js"></script>
+		<script type="text/javascript" src="gl-matrix.js"></script>
+
+		<style>
+			canvas {border: solid 1px black;}
+			.matrixTable {
+			   display: inline-block; 
+			   text-align:center; 
+			   vertical-align: middle;
+			   border-left: solid 1pt; 
+			   border-right: solid 1pt;
+			}
+			.matrixTable td {padding: 2px 10px;}
+		</style>
+	</head>
+
+	<script type="text/javascript">    
+		var N = 200;
+		var ctx1, ctx2;
+		var canvas1, canvas2;
+		var xpix, ypix;
+		
+		var positions = [2, 3, 3, 2, 2, 1, 1, 2,1,1]; //trapezoide
+		//var positions = [1,1,4,1,3,2,2,2,1,1]; //Diamond
+		var positions2 = [0,0,0,0,0,0,0,0,0,0,0,0]; //
+		var i = 0;
+		var M = mat3.create(); 	
+		
+		var params = {
+			'x0': N/2,
+			'y0': N/2,
+			's' : N/10
+		}		
+		var matrix = {
+			'M0' : 2,
+			'shearY' : 0,
+			'M2' : 0,
+			'shearX' : 0,
+			'M4' : 2,
+			'M5' : 0,
+			'TrX' : -2,
+			'TrY' : -3,
+			'M8' : 1
+		}
+		/*
+		var vertex = {
+			v0 : 1, v1: 3, V2: 3, V3 : 2, V4 : 2, V5 : 1, V6 :1, V7 : 2, V8: 1, V9: 1}
+		}
+		var gui;
+		var gui2
+		
+		function guiToVertex(){
+			if vertex.V0
+			positions[0] = vertex.v0;
+			positions[1] = vertex.v1;
+			positions[2] = vertex.v2;
+			positions[3] = vertex.v3;
+			positions[4] = vertex.v4;
+			positions[5] = vertex.v5;
+			positions[6] = vertex.v6;
+			positions[7] = vertex.v7;
+			positions[8] = vertex.v8;
+		}*/
+		function initGUI() {
+			gui = new dat.GUI({ autoPlace: false });
+
+			gui.add(params, 'x0').min(0).max(N).onChange(drawAll);
+			gui.add(params, 'y0').min(0).max(N).onChange(drawAll);
+			gui.add(params, 's').min(1).max(N).onChange(drawAll);
+
+			var parent = document.getElementById('controls');      
+			parent.appendChild(gui.domElement);
+		}		
+		function initGUI2() {
+			gui2 = new dat.GUI({ autoPlace: false });
+			gui2.add(matrix, 'M0').min(-4).max(4).onChange(drawAll);
+			gui2.add(matrix, 'shearY').min(-4).max(4).onChange(drawAll);
+			gui2.add(matrix, 'M2').min(-4).max(4).onChange(drawAll);
+			gui2.add(matrix, 'shearX').min(-4).max(4).onChange(drawAll);
+			gui2.add(matrix, 'M4').min(-4).max(4).onChange(drawAll);
+			gui2.add(matrix, 'M5').min(-4).max(4).onChange(drawAll);
+			gui2.add(matrix, 'TrX').min(-4).max(4).onChange(drawAll);
+			gui2.add(matrix, 'TrY').min(-4).max(4).onChange(drawAll);
+			gui2.add(matrix, 'M8').min(-4).max(4).onChange(drawAll);
+
+			var parent = document.getElementById('controls2');      
+			parent.appendChild(gui2.domElement);
+		}
+		function drawCanonicalAxis(ctx) {
+			ctx.lineWidth = 2/params.s; // 2 pixel screen thick
+			
+			ctx.beginPath();
+			ctx.moveTo(0, 0);  ctx.lineTo(1, 0);       // X Axis
+			ctx.moveTo(1, 0);  ctx.lineTo(0.8, +0.05); // Arrow
+			ctx.moveTo(1, 0);  ctx.lineTo(0.8, -0.05);
+			ctx.stroke();
+			ctx.beginPath();
+			ctx.moveTo(0, 0);  ctx.lineTo(0, 1);       // Y Axis
+			ctx.moveTo(0, 1);  ctx.lineTo(+0.05, 0.8); // Arrow
+			ctx.moveTo(0, 1);  ctx.lineTo(-0.05, 0.8);
+			ctx.stroke();
+		}
+		function drawCanonicalGrid(ctx) {
+			ctx.lineWidth = 0.5/params.s; // 0.5 pixel screen thick
+			
+			var xmin = -Math.ceil(params.x0 / params.s);
+			var xmax = Math.ceil(N-params.x0 / params.s);
+			var ymax = Math.ceil(params.y0 / params.s);
+			var ymin = -Math.ceil(N-params.y0 / params.s);
+			
+			ctx.beginPath();
+			for (var i=ymin; i<=ymax; i++) {
+				ctx.moveTo(xmin, i);  ctx.lineTo(xmax, i);
+			}
+			for (var i=xmin; i<=xmax; i++) {
+				ctx.moveTo(i, ymin);  ctx.lineTo(i, ymax);
+			}
+			ctx.stroke()
+		}
+		
+		/**
+		* Transforms the vec3 with a mat3.
+		*
+		* @param {vec3} out the receiving vector
+		* @param {vec3} a the vector to transform
+		* @param {mat3} m matrix to transform with
+		* @returns {vec3} out
+		*/
+		
+		//nueva coordenada, [nuevascords X, Y,1] por matrix M"
+		//event target getatrribute [id] == canvas2
+		vec3.transformMat3 = function(out, a, m) {
+			var x = a[0], y = a[1], z = a[2];
+			out[0] = m[0] * x + m[3] * y + m[6] * z;
+			out[1] = m[1] * x + m[4] * y + m[7] * z;
+			out[2] = m[2] * x + m[5] * y + m[8] * z;
+			//console.log(out);
+			return out;
+		};
+		//Q4
+		function onMouseDown(event) {
+			drawAll();
+			
+			var rect = event.target.getBoundingClientRect()
+			xpix = event.clientX - rect.left
+			ypix = event.clientY - rect.top
+			
+			var coordsX = (xpix - params.x0)/params.s;
+			var coordsY = (params.y0 - ypix)/params.s;
+			
+			var nuevaCoord = vec3.create();
+			
+			 M[0] = matrix.M0;
+			 M[1] = matrix.shearY;
+			 M[2] = matrix.M2;
+			 M[3] = matrix.shearX;
+			 M[4] = matrix.M4;
+			 M[5] = matrix.M5;
+			 M[6] = matrix.TrX;
+			 M[7] = matrix.TrY;
+			 M[8] = matrix.M8;
+			
+			var vectorN = [coordsX, coordsY, 1];
+			if (event.target.getAttribute('id') == 'canvas1')
+			{
+				vec3.transformMat3(nuevaCoord, vectorN, M);
+				ctx1.fillStyle="rgb(255,0,255)";
+				
+				ctx1.lineWidth = 2/params.s; // 2 pixel screen thick	
+				ctx1.beginPath();
+				ctx1.arc(coordsX, coordsY, .15, 0, 2 * Math.PI);
+				ctx1.fill();
+				
+				ctx2.fillStyle="rgb(255,0,255)";
+				ctx2.lineWidth = 2/params.s; // 2 pixel screen thick	
+				ctx2.beginPath();
+				ctx2.arc(nuevaCoord[0], nuevaCoord[1], .15, 0, 2 * Math.PI);
+				ctx2.fill();					
+			}
+			if (event.target.getAttribute('id') == 'canvas2')
+			{
+				var NuevaM = mat3.create();
+				mat3.invert(NuevaM, M);
+				vec3.transformMat3(nuevaCoord, vectorN, NuevaM);
+				//(nuevaCoord, [coordsX, coordsY, 1], M);
+				ctx1.fillStyle="rgb(255,0,255)";
+				
+				ctx2.lineWidth = 2/params.s; // 2 pixel screen thick	
+				ctx2.beginPath();
+				ctx2.arc(coordsX, coordsY, .15, 0, 2 * Math.PI);
+				ctx2.fill();
+				
+				ctx1.fillStyle="rgb(255,0,255)";
+				ctx1.lineWidth = 2/params.s; // 2 pixel screen thick	
+				ctx1.beginPath();
+				ctx1.arc(nuevaCoord[0], nuevaCoord[1], .15, 0, 2 * Math.PI);
+				ctx1.fill();
+			}
+			
+			console.log("Mouse Down", event)
+			console.log("Pixel coordinates", xpix,ypix)
+		}
+		//Q4
+		
+		mat3.toHTML = function(m) {
+			var str = '<table class="matrixTable"><tbody>'
+			
+			str += '<tr><td>'+matrix.M0.toFixed(2)+'</td><td>'+matrix.shearX.toFixed(2)+'</td><td>'+matrix.TrX.toFixed(2)+'</td></tr>';
+			str += '<tr><td>'+matrix.shearY.toFixed(2)+'</td><td>'+matrix.M4.toFixed(2)+'</td><td>'+matrix.TrY.toFixed(2)+'</td></tr>';
+			str += '<tr><td>'+matrix.M2.toFixed(2)+'</td><td>'+matrix.M5.toFixed(2)+'</td><td>'+matrix.M8.toFixed(2)+'</td></tr>';
+			
+			str += '</tbody></table>'
+			
+			return str
+		}
+
+		//Q1
+		function drawShape(ctx, positions) {	
+			//Define the style of the shape
+			ctx.strokeStyle = "rgb(255, 0, 0)";
+			ctx.lineWidth = 2/params.s; // 2 pixel screen thick		
+			//Begin our drawing
+			ctx.beginPath();
+			ctx.moveTo(positions[0], positions[1]);
+			ctx.lineTo(positions[2], positions[3]);
+			ctx.lineTo(positions[4], positions[5]);
+			ctx.lineTo(positions[6], positions[7]);			 
+			//Close the path
+			ctx.closePath();  
+			//Fill the path with ourline and color
+			ctx.stroke();
+		}	
+		//Q2
+		function applyTransform(ctx, M, positions, positions2){					
+			for(i = 0; i < positions.length - 1; i+=2){
+				positions2[i] = matrix.M0 * positions[i] + (matrix.shearX * positions[i+1])/2 + matrix.TrX;
+				positions2[i+1] = (matrix.M4 * positions[i+1]) + (matrix.shearY * positions[i])/2 + matrix.TrY;
+			}
+		}
+		//Q4
+		function drawAxis(ctx, M) {
+			ctx.lineWidth = 2/params.s; // 2 pixel screen thick
+			
+			ctx.beginPath();
+			ctx.moveTo(matrix.TrX, matrix.TrY);  ctx.lineTo(matrix.TrX, matrix.TrY + matrix.M4);       // X Axis
+			ctx.moveTo(matrix.TrX + matrix.M0, matrix.TrY);  ctx.lineTo((matrix.TrX + matrix.M0)-.2, matrix.TrY + .05); // Arrow
+			ctx.moveTo(matrix.TrX + matrix.M0, matrix.TrY);  ctx.lineTo((matrix.TrX + matrix.M0)-.2, matrix.TrY - .05);
+			ctx.stroke();
+			ctx.beginPath();
+			ctx.moveTo(matrix.TrX, matrix.TrY);  ctx.lineTo(matrix.TrX + matrix.M0, matrix.TrY);       // Y Axis
+			ctx.moveTo(matrix.TrX, matrix.TrY + matrix.M4);  ctx.lineTo(matrix.TrX + .05, (matrix.TrY + matrix.M4)-.2); // Arrow
+			ctx.moveTo(matrix.TrX, matrix.TrY + matrix.M4);  ctx.lineTo(matrix.TrX - .05, (matrix.TrY + matrix.M4)-.2);	
+			ctx.stroke();
+		}
+		
+		function Clear_image() {
+			 M[0] = matrix.M0 = 1;
+			 M[1] = matrix.shearY = 0;
+			 M[2] = matrix.M2 = 0;
+			 M[3] = matrix.shearX = 0;
+			 M[4] = matrix.M4 = 1;
+			 M[5] = matrix.M5 = 0;
+			 M[6] = matrix.TrX = 0;
+			 M[7] = matrix.TrY = 0;
+			 M[8] = matrix.M8 = 1;
+			 
+			 drawAll();
+			
+		}
+		function drawAll() {
+			// Reset canvases
+			ctx1.setTransform(1, 0, 0, 1, 0, 0) // Reset transform
+			ctx2.setTransform(1, 0, 0, 1, 0, 0)
+			ctx1.clearRect(0,0,N,N)  // Clear canvas
+			ctx2.clearRect(0,0,N,N)
+		
+			/* Set canvas global transform */
+		
+			ctx1.translate(params.x0,params.y0) // Set origin position
+			ctx1.scale(params.s, -params.s)     // Set scale (with +y pointing up)
+			
+			ctx2.translate(params.x0,params.y0)
+			ctx2.scale(params.s, -params.s)
+			
+			/* Draw content */
+		
+			ctx1.strokeStyle = '#0000ff'; // Blue
+			drawCanonicalAxis(ctx1)
+			ctx2.strokeStyle = '#000000'; // Black
+			drawCanonicalAxis(ctx2)
+			 
+			ctx1.strokeStyle = '#a0a0ff'; // Light Blue
+			drawCanonicalGrid(ctx1)
+			ctx2.strokeStyle = '#a0a0a0'; // Grey
+			drawCanonicalGrid(ctx2)
+			
+			drawShape(ctx1, positions);	//drawshape
+			ctx2.strokeStyle = '#0000ff'; // Blue
+			drawAxis(ctx2, positions);//axis blue
+							
+			/* Display 3x3 transform matrix M */                
+			applyTransform(ctx2, M, positions, positions2)	//make the transformation
+			drawShape(ctx2, positions2);	//shape with transformation
+			
+			//setInterval(drawMarker, 10);
+			
+			matElem = document.getElementById('mat')
+			matElem.innerHTML = 'M = '+mat3.toHTML(M)
+			console.log(M)
+		}
+
+		function start() {
+			initGUI();
+			initGUI2();
+			
+			canvas1=document.getElementById("canvas1");
+			ctx1=canvas1.getContext("2d");
+	
+			canvas2=document.getElementById("canvas2");
+			ctx2=canvas2.getContext("2d");
+
+			// Resize canvases to match variable N
+			ctx1.canvas.width  = N
+			ctx1.canvas.height = N
+			ctx2.canvas.width  = N
+			ctx2.canvas.height = N
+
+			ctx1.canvas.addEventListener("mousedown", onMouseDown, false);
+			ctx2.canvas.addEventListener("mousedown", onMouseDown, false);
+			drawAll();
+			//drawMarker();
+			
+			
+		}
+	</script>
+	<body onload="start();">
+		<h2>Basic Image Processing</h2>
+
+		<div style="display:inline-block">
+		Original <br/>
+		<canvas id="canvas1" width="400" height="400"></canvas>
+		</div>
+
+		<div style="display:inline-block">
+		Transformed        <br/>
+		<canvas id="canvas2" width="400" height="400"></canvas>
+		</div>
+
+		<div style="display:inline-block">
+		GUI <br/>
+		<span id="controls"></span>
+		</div>
+		<div style="display:inline-block">
+		GUI2 <br/>
+		<span id="controls2"></span>
+		</div>
+
+		<div id='mat'></div>
+		<button onclick="Clear_image();">Bonus: Clear Image</button>
+		<a href="robot.html"><button>Part 2 Robot</button></a>
+	</body>
+</html>   

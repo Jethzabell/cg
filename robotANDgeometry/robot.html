@@ -1,0 +1,295 @@
+<html>
+
+<head>
+<title>Learning WebGL &mdash; lesson 4</title>
+<meta http-AZv="content-type" content="text/html; charset=ISO-8859-1">
+
+<!-- <script type="text/javascript" src="glMatrix-0.9.5.min.js"></script> -->
+<script type="text/javascript" src="gl-matrix.js"></script>
+<script type="text/javascript" src="webgl	-utils.js"></script>
+<script type="text/javascript" src="shader-utils.js"></script>
+<script type="text/javascript" src="dat.gui.js"></script>
+
+<script type="text/javascript" src="XYZAxis.js"></script>
+<script type="text/javascript" src="cubo.js"></script>
+<script type="text/javascript" src="cubow.js"></script>
+<script type="text/javascript" src="rectangulo.js"></script>
+<script type="text/javascript" src="rectanguloW.js"></script>
+<script type="text/javascript" src="PlaneMesh.js"></script>
+<script type="text/javascript" src="SurfMesh.js"></script>
+
+<style>
+    canvas {border: solid 1px black;}
+</style>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec4 vColor;
+
+    void main(void) {
+        gl_FragColor = vColor;
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec4 aVertexColor;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+
+    varying vec4 vColor;
+
+    void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vColor = aVertexColor;
+    }
+</script>
+
+<script type="text/javascript">
+
+var gl;
+function initGL(canvas) {
+    try {
+        gl = canvas.getContext("experimental-webgl");
+        gl.viewportWidth = canvas.width;
+        gl.viewportHeight = canvas.height;
+    } catch (e) {
+    }
+    if (!gl) {
+        alert("Could not initialise WebGL, sorry :-(");
+    }
+}
+//*************************************	************
+var shaderProgram;
+function initShaders() {
+    // Uses shader-utils.js utilities
+    shaderProgram = getShaderProgram("shader-vs","shader-fs");
+
+    gl.useProgram(shaderProgram);
+
+    /* Store attributes and uniforms locations */
+    shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+    gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+    shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+    gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+
+    shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+    shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+}
+function degToRad(degrees) {
+    return degrees * Math.PI / 180;
+}
+/* GUI for parameters */
+	var params = {
+		fov : 45, near : 0.1, far : 100, x : 0, z : 0, wireFrame : false
+	}
+	var cameras = {
+		AZ : -12, EL : 10, R : 8
+	}
+	var rot = {
+		rotBody : 0, rotHand : 25, rotArm : 30
+	}
+	var gui;
+function initGUI() 
+{
+    gui = new dat.GUI({ autoPlace: true });
+
+    var f = gui.addFolder('Camera intrinsic')
+    f.add(params, 'fov').min(10).max(120)
+    f.add(params, 'near').min(0).max(4)
+    f.add(params, 'far').min(4).max(1000)
+	f.add(params, 'x').min(-9).max(9)
+	f.add(params, 'z').min(-9).max(9)
+	f.add(params, 'wireFrame').onChange(wireFrame);
+    f.open()
+	
+	var g = gui.addFolder('Camera')
+    g.add(cameras, 'AZ').min(-12).max(12)
+    g.add(cameras, 'EL').min(-12).max(12)
+    g.add(cameras, 'R').min(0).max(12)
+    g.open()
+	
+	var b = gui.addFolder('Arm')
+    b.add(rot, 'rotHand').min(0).max(50)
+    b.add(rot, 'rotArm').min(0).max(60)
+    b.add(rot, 'rotBody').min(-4).max(4)
+    b.open()
+}
+
+/* Drawing */
+
+// Camera parameters
+var vMatrix = mat4.create();
+var pMatrix = mat4.create();
+
+// Scene objects
+var axis;
+var mesh;
+var cub;
+var rCube = 0;
+var rec;
+var rec2;
+
+function drawScene() {
+    // Clear canvas
+    gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    /* Define Projection matrix */
+    mat4.perspective(pMatrix, degToRad(params.fov), gl.viewportWidth / gl.viewportHeight, params.near, params.far);
+	//zoom
+    mat4.ortho(pMatrix, -cameras.R, cameras.R, -cameras.R, cameras.R, params.near, params.far);
+    //mat4.ortho(out, left, right, bottom, top, near, far) 
+		
+    /* Define View Matrix */
+    mat4.lookAt(vMatrix, [cameras.AZ, cameras.EL, 1], 
+							[0, 0, 0], 
+							[0, 1, 0]) 
+	//mat4.lookAt(vMatrix, [cameras.AZ, cameras.EL, cameras.R], [0, 0, 0], [0, 1, 0]) 
+   
+    /* Define Model Matrix and draw objects */
+    var mMatrix = mat4.create();
+    
+    // Draw XYZ axis for canonical frame (mMatrix = identity)
+    mat4.identity(mMatrix);
+    axis.draw(mMatrix, vMatrix, pMatrix);
+
+    // Draw a XZ planar mesh by rotating a XY planar mesh
+    mat4.identity(mMatrix);    
+    mat4.rotateX(mMatrix, mMatrix, degToRad(90))
+    mesh.draw(mMatrix, vMatrix, pMatrix);
+	
+	//********************************************************
+	mat4.identity(mMatrix);
+	mat4.translate(vMatrix, vMatrix, [params.x, 1, params.z]);
+	mat4.rotateY(vMatrix, vMatrix, rot.rotBody, [4, 0, 1]);
+	cub.draw(mMatrix, vMatrix, pMatrix);
+	
+	mat4.identity(mMatrix);
+	mat4.translate(vMatrix, vMatrix, [0, 1.5, 0]);
+	mat4.rotate(vMatrix, vMatrix, degToRad(rot.rotArm), [0, 0, 1]);
+	rec.draw(mMatrix, vMatrix, pMatrix);
+		
+	mat4.identity(mMatrix);
+	mat4.translate(vMatrix, vMatrix, [0, 2, 0]);
+
+	mat4.rotate(vMatrix, vMatrix, degToRad(rot.rotHand), [0, 0, 1]);
+	rec2.draw(mMatrix, vMatrix, pMatrix);
+}
+
+/* Keyboard */
+var currentlyPressedKeys = {};
+function initKeys(canvas) {
+    canvas.setAttribute('tabindex','0');
+    canvas.focus();
+
+    canvas.addEventListener( "keydown", handleKeyDown, true);
+    canvas.addEventListener( "keyup", handleKeyUp, true);
+}
+function handleKeyDown(event) {
+    console.log(event)
+    event.preventDefault();
+    currentlyPressedKeys[event.keyCode] = true;
+}
+function handleKeyUp(event) {
+    currentlyPressedKeys[event.keyCode] = false;
+}
+function handleKeys() {
+     if (currentlyPressedKeys[38]) {
+            // Page Up
+            params.x -= 0.05;
+        }
+        if (currentlyPressedKeys[40]) {
+            // Page Down
+            params.x += 0.05;
+        }
+        if (currentlyPressedKeys[37]) {
+            // Left cursor key
+            rot.rotBody -= 0.5;
+        }
+        if (currentlyPressedKeys[39]) {
+            // Right cursor key
+            rot.rotBody += 0.5;
+        }
+		if (currentlyPressedKeys[39]) {
+            // Right cursor key
+            rot.rotBody += 0.5;
+        }
+		
+		if (currentlyPressedKeys[90]) {
+            
+			
+			}        
+}
+			// bad programming
+			function wireFrame(){
+				if ( params.wireFrame == true)
+				{
+					cub = new CUBEW(gl, shaderProgram);
+					rec = new RECTANGULOW(gl, shaderProgram);
+					rec2 = new RECTANGULOW(gl, shaderProgram);
+					//params.bool = false;
+				}
+				else
+				{
+					cub = new CUBE(gl, shaderProgram);
+					rec = new RECTANGULO(gl, shaderProgram);
+					rec2 = new RECTANGULO(gl, shaderProgram);
+				}
+			}
+/* Animation and main loop */
+
+var rCube = 0;
+var lastTime = 0;
+function animate() {
+    var timeNow = new Date().getTime();
+    if (lastTime != 0) {
+        var elapsed = timeNow - lastTime;
+
+        rCube -= (75 * elapsed) / 1000.0;
+    }
+    lastTime = timeNow;
+}
+
+function tick() {
+    requestAnimFrame(tick);
+    handleKeys()
+    drawScene();
+    animate();
+}
+
+function webGLStart() {
+    var canvas = document.getElementById("canvas");
+    initGL(canvas)
+    initShaders()
+
+    axis = new XYZAxis(gl,shaderProgram)
+	cub = new CUBE(gl,shaderProgram)
+	rec = new RECTANGULO(gl,shaderProgram)
+	rec2 = new RECTANGULO(gl,shaderProgram)
+    mesh = new PlaneMesh(gl, shaderProgram, 20,20, 20,20)
+
+    initGUI()
+    initKeys(canvas)
+
+    gl.clearColor(1.0, 1.0, 1.0, 1.0);
+    gl.enable(gl.DEPTH_TEST);
+
+    // Start animation
+    tick();
+}
+
+</script>
+</head>
+
+<body onload="webGLStart();">
+    <canvas id="canvas" width="500" height="500"></canvas>
+    <div id="controls"></div>
+	<a href="index.html"><button>Part 1 GEOMETRY</button></a>
+	<p> Use up/down left/right  ARROWS <p>
+</body>
+
+</html>

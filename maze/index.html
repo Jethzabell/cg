@@ -1,0 +1,573 @@
+<html>
+
+<head>
+<title>Maze project</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<!-- <script type="text/javascript" src="js/three.js"></script> -->
+<script type="text/javascript" src="js/three.min.js"></script>
+
+<script type="text/javascript" src="js/loaders/DDSLoader.js"></script>
+<script type="text/javascript" src="js/loaders/MTLLoader.js"></script>
+<script type="text/javascript" src="js/loaders/OBJMTLLoader.js"></script>
+<script type="text/javascript" src="js/loaders/OBJLoader.js"></script>
+		
+<script type="text/javascript" src="js/libs/dat.gui.min.js"></script>
+
+<script type="text/javascript" src="js/maze-utils.js"></script>
+
+<style>
+    canvas {border: solid 1px black;}
+</style>
+
+<script type="text/javascript">
+
+    // Global variables for the GUI/View
+    var params = {
+        'az0': -133.0,
+        'el0': 48.0,
+        'd0' : 11.6
+    }
+    var gui;
+    function initGUI() {
+        gui = new dat.GUI({ autoPlace: true })
+
+        gui.add(params, 'az0').min(-180).max(+180).listen();
+        gui.add(params, 'el0').min(-90).max(+90).listen();
+        gui.add(params, 'd0').min(+1).max(+100).listen();
+    }
+
+    // Keyboard controls
+    var currentlyPressedKeys = {};
+    
+    function initKeyboard(canvas, onKeyDown, onKeyUp) {
+        // add tabindex attribute to canvas to allow it getting keyboard focus
+        // Same as declaring <canvas tag='webgl-canvas' tabindex='1'></canvas> in HTML
+        canvas.setAttribute('tabindex',1);
+        // Give focus to canvas by default and each time mouse enters 
+        // to improve user experience by handling keyboard out of the box
+        canvas.focus();
+        canvas.onmouseenter = (function () {canvas.focus()});
+        //canvas.onmouseleave = (function () {canvas.blur()});
+        
+        canvas.onkeydown = handleKeyDown;
+        canvas.onkeyup = handleKeyUp;
+    }
+    function handleKeyDown(event) {
+        var keyCode = event.keyCode;
+        currentlyPressedKeys[keyCode] = true;
+        
+        // Display pressed keys for debugging. Comment if too verbose
+        console.log('KeyDown: keycode = '+keyCode.toString());
+        
+        if (keyCode == 37 || keyCode == 38 || keyCode == 39 || keyCode == 40) {
+            // Arrow keys: prevent default handling (i.e. avoid scrolling)
+            event.preventDefault();
+            // Arrows are handled using polling in handleKeys
+        } else if (keyCode == 86) {
+            // Change current camera
+            cameraId = (cameraId+1)%3
+            camera = cameras[cameraId]
+            console.log('cameraId = '+cameraId.toString()+", camera = ",cameras[cameraId])
+            //var messagebox = document.getElementById("messagebox");
+            messagebox.innerHTML = 'Camera '+cameraId
+        }
+        if (keyCode == 67) {
+            // Check victory
+			if((maze.goal.x == Math.floor(posx)) && (maze.goal.y == Math.floor(posy))){
+					alert("You find the end");
+				}
+			else 
+				alert("KEEP GOING");
+        }
+    }
+    function handleKeyUp(event) {
+        currentlyPressedKeys[event.keyCode] = false;
+    }
+    function handleKeys() {
+        /* Camera 0 controls */
+        if (currentlyPressedKeys[73] /* I */) { params.el0 += 2 }
+        if (currentlyPressedKeys[75] /* K */) { params.el0 -= 2 }
+        if (currentlyPressedKeys[74] /* J */) { params.az0 -= 2 }
+        if (currentlyPressedKeys[76] /* L */) { params.az0 += 2 }
+        if (currentlyPressedKeys[85] /* U */) { params.d0 *= 1.05 }
+        if (currentlyPressedKeys[79] /* O */) { params.d0 /= 1.05 }
+		
+        if (params.el0>90) params.el0=90;    
+        else if (params.el0<-90) params.el0=-90;
+        if (params.az0>180) params.az0-=360; 
+        else if (params.az0<-180) params.az0+=360;
+        
+        /* Hero control */
+        daz = 0  // Rotation control
+        if (currentlyPressedKeys[37] /* Left */) { daz = 1 }
+        if (currentlyPressedKeys[39] /* Right */) { daz = -1 }
+        dx = 0; dy = 0;  // Position control
+        if (currentlyPressedKeys[38] /* Up */) {
+            dx = -Math.sin(degToRad(az))
+            dy = Math.cos(degToRad(az))
+        }
+        if (currentlyPressedKeys[40] /* Down */) {
+            dx = Math.sin(degToRad(az))
+            dy = -Math.cos(degToRad(az))
+        }
+        /* Setting cameras and hero new position is done in animation() */
+    }
+    
+    var mouseState = 0
+    var mousex=0, mousey=0
+    
+    function initMouse(canvas) {
+        canvas.onmousemove = handleMouseMove;
+        canvas.onmousedown = handleMouseDown;
+        canvas.onmouseleave = function() {mouseState = 0; mousex=0; mousey=0};
+    }
+    function handleMouseDown(event) {
+    }
+    function handleMouseMove(event) {
+        var rect = event.target.getBoundingClientRect()
+        mousex = (event.clientX - rect.left) / (rect.right-rect.left) - 0.5
+        mousey = (event.clientY - rect.top) / (rect.bottom-rect.top) - 0.5
+        // Could do something with that
+    }
+
+    var lastTime = 0, elapsed = 0
+	
+    function animate() {
+        var timeNow = new Date().getTime();
+        if (lastTime != 0) { elapsed = (timeNow - lastTime)/1000; }
+        lastTime = timeNow;
+        
+        /* Hero collision detection */
+        var d2 = dx * dx + dy * dy
+        if (d2 > 0) {
+            // If we are moving, check for collisions
+            // TODO
+			var pos = new THREE.Vector3(posx,posy,0.5)
+			var dir = new THREE.Vector3(dx,dy,0)
+			var raycaster = new THREE.Raycaster(pos, dir, 0, 1)
+			var intersects = raycaster.intersectObject( wallMesh )
+			if (intersects.length > 0) {
+				// intersect[0].distance to the closest wall
+				// in the moving direction. Use it to decide
+				// if we should cancel the motion : dx=0, dy=0
+				dx = 0;
+				dy = 0;
+			}
+        }
+        
+        /* Update Hero Position */
+        posx += dx * elapsed * 1 / 0.4    // Move 1 unit in 0.4s
+        posy += dy * elapsed * 1 / 0.4
+        az += daz * elapsed * 360 / 2     // Turn 360 deg in 2s
+
+        hero.position.set(posx,posy, 0)
+        hero.rotation.set(0,0,degToRad(az),"ZXY")
+       
+		
+        /* Cameras update */
+            
+        var az0 = params.az0, el0 = params.el0, d0 = params.d0
+        
+        // Uncomment to look at maze center instead of origin
+        //var target = new THREE.Vector3(maze.w/2,maze.h/2,0)
+        var target = new THREE.Vector3(0,0,0)
+        cameras[0].position.set(
+                target.x-d0*Math.cos(degToRad(el0))*Math.sin(degToRad(az0)),
+                target.y-d0*Math.cos(degToRad(el0))*Math.cos(degToRad(az0)),
+                target.z+d0*Math.sin(degToRad(el0)))
+        cameras[0].up.set(0,0,1)
+        cameras[0].lookAt(target)
+        cameras[0].updateMatrixWorld()
+        camerasHelpers[0].update()
+            
+        cameras[1].position.set(posx,posy, 0.85)
+        // Euler angles in ZXY order:
+        // First rotate az degrees around Z for the direction, then
+        // rotate 90 deg around X to get the direction Z_camera pointing backward
+        cameras[1].rotation.set(degToRad(90)+mousey,0,degToRad(az)+mousex,"ZXY") 
+        cameras[1].updateMatrixWorld()
+        camerasHelpers[1].update()
+		
+		var handPos = new THREE.Vector3(posx, posy, 0.5)
+		var spotDir = new THREE.Vector3(Math.cos(degToRad(az)+1.6), Math.sin(degToRad(az)+1.6), -0.1)
+		spotLight.position.copy(handPos)
+		spotLight.target.position.copy(spotDir)
+		spotLight.target.position.add(handPos)
+		spotLight.target.updateMatrixWorld()
+		
+		renderEarth();
+    }
+
+	
+    function tick() {
+        requestAnimationFrame(tick);
+        handleKeys();
+        animate();
+        renderer.render(scene, camera);
+    }
+
+    // Global variables for the Model
+
+    maze = { 
+        w: 5, h:4,
+        floor: [
+            1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1,
+            ],
+        yzwall: [
+            2, 0, 0, 2, 0, 2,
+            2, 0, 0, 2, 2, 2,
+            2, 2, 0, 0, 2, 2,
+            2, 0, 0, 0, 0, 2,
+            ],
+        xzwall : [
+            2, 2, 2, 2, 2,
+            0, 2, 2, 0, 0,
+            0, 0, 2, 0, 2,
+            0, 2, 2, 0, 0,
+            2, 2, 2, 2, 2,
+            ],
+        goal: {'x': 4, 'y': 3}
+        }
+    /* Hero position */
+    var posx = 0, posy = 0, az = 0
+    /* Hero motion */
+    var dx=0,dy=0,daz=0
+
+
+    createXYTile = function(x,y,z,materialIndex) {
+        var geometry = new THREE.Geometry()
+        
+        var nvertices = geometry.vertices.length
+        geometry.vertices.push( 
+            new THREE.Vector3( x  , y  , z ),
+            new THREE.Vector3( x+1, y  , z ), 
+            new THREE.Vector3( x+1, y+1, z ),
+            new THREE.Vector3( x  , y+1, z ) 
+        );
+        
+        var nfaces = geometry.faces.length
+        geometry.faces.push( 
+            new THREE.Face3( nvertices, nvertices+1, nvertices+2, null, null, materialIndex),
+            new THREE.Face3( nvertices, nvertices+2, nvertices+3, null, null, materialIndex)
+        )
+        
+        // TODO: append UV coordinates to each vertex in each face
+        //geometry.faceVertexUvs[0]
+		
+		geometry.faceVertexUvs[0].push(
+		[
+		new THREE.Vector2( 0,0 ),
+		new THREE.Vector2( 1,0 ),
+		new THREE.Vector2( 1,1 )
+		], [
+		new THREE.Vector2( 0,0 ),
+		new THREE.Vector2( 1,1 ),
+		new THREE.Vector2( 0,1 )
+		]
+		);
+        
+        return geometry
+    }
+    createXZTile = function(x,y,z,materialIndex) {
+        var geometry = new THREE.Geometry()
+        
+        var nvertices = geometry.vertices.length
+        geometry.vertices.push( 
+            new THREE.Vector3( x  , y  , z ),
+            new THREE.Vector3( x+1, y  , z ), 
+            new THREE.Vector3( x+1, y, z+1 ),
+            new THREE.Vector3( x  , y, z+1 ) 
+        );
+        
+        var nfaces = geometry.faces.length
+        geometry.faces.push( 
+            new THREE.Face3( nvertices, nvertices+1, nvertices+2, null, null, materialIndex),
+            new THREE.Face3( nvertices, nvertices+2, nvertices+3, null, null, materialIndex)
+        )
+        
+        // TODO: append UV coordinates to each vertex in each face
+        //geometry.faceVertexUvs[0]
+		
+		geometry.faceVertexUvs[0].push(
+		[
+		new THREE.Vector2( 0,0 ),
+		new THREE.Vector2( 1,0 ),
+		new THREE.Vector2( 1,1 )
+		], [
+		new THREE.Vector2( 0,0 ),
+		new THREE.Vector2( 1,1 ),
+		new THREE.Vector2( 0,1 )
+		]
+		);
+        
+        return geometry
+    }
+    createYZTile = function(x,y,z,materialIndex) {
+        var geometry = new THREE.Geometry()
+        
+        var nvertices = geometry.vertices.length
+        geometry.vertices.push( 
+            new THREE.Vector3( x, y , z ),
+            new THREE.Vector3( x, y+1 , z ), 
+            new THREE.Vector3( x, y+1, z+1),
+            new THREE.Vector3( x, y, z+1 )
+        );
+        
+        var nfaces = geometry.faces.length
+        geometry.faces.push( 
+            new THREE.Face3( nvertices, nvertices+1, nvertices+2, null, null, materialIndex),
+            new THREE.Face3( nvertices, nvertices+2, nvertices+3, null, null, materialIndex)
+        )
+        
+        // TODO: append UV coordinates to each vertex in each face
+        //geometry.faceVertexUvs[0]
+		
+		geometry.faceVertexUvs[0].push(
+		[
+		new THREE.Vector2( 0,0 ),
+		new THREE.Vector2( 1,0 ),
+		new THREE.Vector2( 1,1 )
+		], [
+		new THREE.Vector2( 0,0 ),
+		new THREE.Vector2( 1,1 ),
+		new THREE.Vector2( 0,1 )
+		]
+		);
+        return geometry
+    }
+    
+    createFloorGeometry = function() {
+        geometry = new THREE.Geometry();
+        // TODO
+		var id = 0;
+		for(var y = 0; y < maze.h; ++y){
+			for(var x = 0; x < maze.w; ++x){
+				if( maze.floor[id] > 0){
+					var tile = createXYTile(x,y,0,0);
+					geometry.merge(tile, new THREE.Matrix4(), 0)	
+				}
+				id++;
+			}
+		}
+		//==================================================
+        geometry.computeFaceNormals();
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+    createWallGeometry = function() {
+        geometry = new THREE.Geometry();
+        // TODO
+		var id = 0;
+		for(var y = 0; y < maze.h+1; ++y){
+			for(var x = 0; x < maze.w; ++x){
+				if(maze.xzwall[id] > 0){
+					var tile = createXZTile(x,y,0,0);
+					geometry.merge(tile, new THREE.Matrix4(), 0)	
+				}  
+				id++;	
+			}
+		}
+		var id2 = 0;
+		for(var y = 0; y < maze.h; ++y){
+			for(var x = 0; x < maze.w+1; ++x){
+				if(maze.yzwall[id2] > 0){
+					var tile = createYZTile(x,y,0,0);
+					geometry.merge(tile, new THREE.Matrix4(), 0)	
+				}  
+				id2++;
+			}
+		}
+        //==========================================
+		geometry.computeFaceNormals();
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+
+    // Global variables for the View
+
+    var renderer;
+    var scene, camera
+    var cameraId
+    
+    var cameras = []
+    var camerasHelpers = []
+    var axisHelper, plane
+    
+    var floorMesh, wallMesh, sun
+    function renderEarth()
+	{	 
+		sun.rotation.z +=  Math.PI / 180;
+		
+		//sun.rotation.x += 0.005;
+		//sun.rotation.z += 0.02;
+
+		renderer.render( scene, camera );
+		
+	}
+    function webGLStart() {
+    
+        /* Initialize WebGL renderer and create scene */
+	
+        var canvas = document.getElementById("canvas");
+        renderer = new THREE.WebGLRenderer({
+            'canvas': canvas, 
+            maxLights: 6, 
+            preserveDrawingBuffer: true,
+            shadowMapEnabled: true  // Remove if performance issues
+            }); 
+        //renderer.setClearColor(0xffffff)
+        renderer.setClearColor(0x000000)
+        
+        scene = new THREE.Scene(); 
+        
+        /* Create cameras */
+        // Note: look in animate() for the setting of cameras position and orientation
+        cameras[0] = new THREE.PerspectiveCamera( 75, canvas.width / canvas.height, 0.005, 100);
+        cameras[1] = new THREE.PerspectiveCamera( 100, canvas.width / canvas.height, 0.005, 100);        
+        var W = Math.max(maze.w, maze.h)
+        cameras[2] = new THREE.OrthographicCamera( -1, W+1, W+1, -1, -10, 10);        
+        
+        // Define current camera
+        cameraId = 0
+        camera = cameras[cameraId]
+        
+        /* Helpers */
+        
+        for (var i=0; i<cameras.length; i++) {
+            camerasHelpers[i] = new THREE.CameraHelper(cameras[i])
+            camerasHelpers[i].visible = false // Set to true to show cameras positions
+            scene.add( camerasHelpers[i] )
+        }
+        
+        axisHelper = new THREE.AxisHelper( 1 ); // Axis length = 2
+        axisHelper.material.linewidth = 7
+        axisHelper.position.set(0,0,0)
+        scene.add( axisHelper );
+        
+
+        var geometry, material // Tmp variables
+        
+        //Remove this plane once floor tiles are ok
+        //geometry = new THREE.PlaneGeometry( maze.w,maze.h,  maze.w,maze.h ); 
+        //geometry.applyMatrix(new THREE.Matrix4().makeTranslation(maze.w/2,maze.h/2,0) );
+        //material = new THREE.MeshBasicMaterial( {color: 0x606060, wireframe: true, linewidth: 1} ); 
+        //var plane = new THREE.Mesh( geometry, material ); 
+        //scene.add( plane )
+        
+        /* Load textures and create materials */
+		var materials = [];
+		tex0 = THREE.ImageUtils.loadTexture( "textures/crateUV.jpg" );
+		tex1 = THREE.ImageUtils.loadTexture( "textures/floor1.png" );
+		tex2 = THREE.ImageUtils.loadTexture( "textures/brick-c.jpg " );
+		tex3 = THREE.ImageUtils.loadTexture( "textures/brick-n.jpg " );
+		tex4 = THREE.ImageUtils.loadTexture( "textures/earth.jpg " );
+        // TODO: Define materials[i] for i=0..3
+		materials[0]=new THREE.MeshPhongMaterial({map:tex0, side: THREE.DoubleSide} );
+		materials[1]=new THREE.MeshPhongMaterial({map:tex1, side: THREE.DoubleSide} );
+		materials[2]=new THREE.MeshPhongMaterial({map:tex2, normalMap: tex3, specular: new THREE.Color(0xffffff),shininess: 30, normalScale: new THREE.Vector2(1,1), side: THREE.DoubleSide} );
+		materials[3]=new THREE.MeshPhongMaterial({map:tex4, overdraw: true, shininess: 30} );//emissive: 0x00ffff 
+        materials[4]=new THREE.MeshPhongMaterial({emissive: 0x00ffff, overdraw: true, shininess: 30} );// 
+		// TODO: Define multimaterial
+		multimaterial = new THREE.MeshFaceMaterial( materials );                
+		
+        // TODO: complete createFloorGeometry function
+        geometry = createFloorGeometry()
+        mesh = new THREE.Mesh( geometry, materials[1] );
+        scene.add( mesh );
+        
+        // TODO: complete createWallGeometry function    
+        geometry = createWallGeometry()
+        wallMesh = new THREE.Mesh( geometry, materials[2] );
+        scene.add( wallMesh ); 
+        
+        /* Create hero mesh */
+        posx = 0.2
+        posy = 0.2
+        
+        //geometry = new THREE.SphereGeometry(100, 32, 16);
+        //geometry.applyMatrix(new THREE.Matrix4().makeTranslation(0,0,0.3))
+        //geometry.merge( geometry, new THREE.Matrix4().makeTranslation(maze.goal.x + 0.5,maze.goal.y + 0.5,0.8), 0 )
+        //material = new THREE.MeshPhongMaterial( {color: 0xff0000} ); 
+        //sfera = new THREE.Mesh( geometry, material ); 
+        //scene.add( sfera );
+
+		hero = new THREE.Mesh( geometry, material ); 
+		
+        // TODO: replace box and sphere hero with mesh loaded from JSON file
+        THREE.Loader.Handlers.add( /\.dds$/i, new THREE.DDSLoader() );
+        var loader = new THREE.JSONLoader();
+        var onJSONLoaded = function ( geometry, materials ) {
+            hero = new THREE.Mesh( geometry, new THREE.MeshFaceMaterial( materials ) );
+			hero.geometry.applyMatrix( new THREE.Matrix4().makeRotationX(Math.PI/2) );
+			hero.geometry.applyMatrix( new THREE.Matrix4().makeRotationZ(Math.PI) );
+            hero.geometry.applyMatrix( new THREE.Matrix4().makeScale(0.003,0.003,0.003) );
+            scene.add( hero );
+		}
+        loader.load( 'obj/male02/Male02_dds.js', onJSONLoaded);
+		
+
+
+        /* Orb of victory */
+        
+        // TODO: Create orb
+		
+		var geometry = new THREE.SphereGeometry(0.2, 32, 16);
+		geometry.applyMatrix(new THREE.Matrix4().makeTranslation(maze.goal.x + 0.5, maze.goal.y + 0.5,0.5))
+		sphere = new THREE.Mesh( geometry, materials[4] );
+		scene.add( sphere );
+      
+		var geometry = new THREE.SphereGeometry(0.5, 32, 16);
+		geometry.applyMatrix(new THREE.Matrix4().makeTranslation(4, 3,1.5))
+		sun = new THREE.Mesh( geometry, materials[3] );
+		scene.add( sun );
+		
+		var pointLight = new THREE.PointLight(0x00ffff,0.4,2); // Set the color of the light source (white).
+		pointLight.position.set(maze.goal.x + 0.5, maze.goal.y + 0.5, 0.5); // Position the light source at (x, y, z).
+		scene.add(pointLight); // Add the light source to the scene.
+	
+        /* Create lights */
+           
+        var light = new THREE.AmbientLight( 0x808080 ); // soft white light 
+        scene.add( light );
+        
+        var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+        directionalLight.position.set( 2,2, 5 );
+        scene.add( directionalLight );
+        
+        // TODO: Create SpotLight
+        spotLight = new THREE.SpotLight( 0xffff00, 2.0, 3.0,Math.PI/180*30 );
+		scene.add( spotLight );
+        
+        /* Create Controllers */
+        
+        initMouse(canvas);
+        initKeyboard(canvas);
+        initGUI()
+
+        // Start rendering loop
+        tick();
+    }
+
+</script>
+
+
+</head>
+
+
+<body onload="webGLStart();">
+
+    <canvas id="canvas" width="512" height="512"></canvas>
+    <br/>
+    <div id="messagebox">---</div>
+    <div>Memo:<br>cameras[0] controls: IJKL for elevation/azimuth, UO for distance to target
+    <br>Hero/cameras[1] controls: arrow keys
+    <br>cameras[2] controls: none
+    <br>Switch between cameras using 'V'
+	<br>Press 'c' to check if you win</div>
+</body>
+
+</html>
